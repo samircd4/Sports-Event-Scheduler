@@ -1,9 +1,8 @@
-import requests
 from rich import print
-import json
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from http_client import session
 
 load_dotenv()
 
@@ -14,22 +13,6 @@ def get_today_date(days_offset=0):
 
 def get_event_list():
 
-    headers = {
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "en-US,en;q=0.9,bn;q=0.8",
-        "authorization": os.getenv("AUTHORIZATION_KEY"),
-        "origin": "https://app.pikkit.com",
-        "priority": "u=1, i",
-        "referer": "https://app.pikkit.com/",
-        "sec-ch-ua": '"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "cross-site",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-    }
-
     event_list = []
     current_offset = 0
 
@@ -39,8 +22,8 @@ def get_event_list():
             "league_offset": str(current_offset),
         }
 
-        response = requests.get(
-            "https://prod-website.pikkit.app/events/all", params=params, headers=headers
+        response = session.get(
+            "https://prod-website.pikkit.app/events/all", params=params
         )
         raw_data = response.json()  # Equivalent to json.loads(response.text)
         data = raw_data.get("leagues", [])

@@ -1,22 +1,7 @@
-import requests
-from rich import print
-import json
 import os
 from dotenv import load_dotenv
+from http_client import session
 load_dotenv()
-
-HEADERS = {
-    'accept': 'application/json, text/plain, */*',
-    'accept-language': 'en-US,en;q=0.9,bn;q=0.8',
-    'authorization': os.getenv("AUTHORIZATION_KEY"),
-    'origin': 'https://app.pikkit.com',
-    'priority': 'u=1, i',
-    'referer': 'https://app.pikkit.com/',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'cross-site',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-}
 
 def _safe_round(value, digits=2):
     """Round a value safely, returning None if value is None."""
@@ -30,7 +15,7 @@ def _safe_round(value, digits=2):
 
 def get_event_info(event_id):
 
-    response = requests.get(f'https://prod-website.pikkit.app/event/foryou/{event_id}', headers=HEADERS)
+    response = session.get(f'https://prod-website.pikkit.app/event/foryou/{event_id}')
     
     data = response.json()  # Equivalent to json.loads(response.text)
     odds_list = data.get('odds') or []

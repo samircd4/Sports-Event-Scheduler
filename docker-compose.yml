@@ -24,3 +24,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # Needed so the container can reach the SSH SOCKS5 proxy at 127.0.0.1:1080
+    # on the host. Remove this line if you're using an external proxy URL instead.
+    network_mode: host
