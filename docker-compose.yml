@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sports Event Scheduler — Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy .env.example to .env, fill in your credentials, then run:
+#   docker compose up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sports_scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persist CSV output and log file on the host across container restarts.
+      # The touch commands below ensure the files exist before Docker tries to bind-mount them.
+      - ./events_data.csv:/app/events_data.csv
+      - ./scheduler.log:/app/scheduler.log
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
