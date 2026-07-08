@@ -383,3 +383,12 @@
 2026-07-08 11:11:03 [INFO] Event list refreshed — 26 new event(s) added. Total tracked: 26
 2026-07-08 11:11:22 [INFO] Scheduler stopping — waiting for active fetches to finish...
 2026-07-08 11:11:22 [INFO] Scheduler stopped.
+2026-07-08 11:48:19 [INFO] ============================================================
+2026-07-08 11:48:19 [INFO]   Event Scheduler started
+2026-07-08 11:48:19 [INFO]   Trigger: 60s before each event
+2026-07-08 11:48:19 [INFO]   Refresh interval: 60 minutes
+2026-07-08 11:48:19 [INFO] ============================================================
+2026-07-08 11:48:19 [INFO] Refreshing event list...
+2026-07-08 11:48:21 [INFO] Event list refreshed — 26 new event(s) added. Total tracked: 26
+2026-07-08 11:48:23 [INFO] Scheduler stopping — waiting for active fetches to finish...
+2026-07-08 11:48:23 [INFO] Scheduler stopped.

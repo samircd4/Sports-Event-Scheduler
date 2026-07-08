@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .env
+scheduler.log
+events_data.csv
+service_account.json

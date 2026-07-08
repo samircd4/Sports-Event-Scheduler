@@ -1,14 +1,16 @@
 """
-send_all_events.py — One-shot script to send all today's events to Telegram immediately.
-Useful for testing or getting a full snapshot of the day's events.
+send_all_events.py — Populate Google Sheet with today's event list.
+
+Fetches all of today's events and inserts them as placeholder rows in the
+Google Sheet (no odds data, no Telegram messages).
+
+Use this to pre-fill the sheet at the start of the day.
+The scheduler.py will then fill in the odds columns 1 minute before each game.
 """
 
-import time
 import logging
 from all_events import get_event_list
-from get_odds import get_event_info
-from notifier import send_telegram
-from storage import save_to_csv
+from storage import save_to_csv   # shim → sheets_storage.save_to_sheet
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,42 +19,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DELAY_BETWEEN_EVENTS = 1  # seconds between sends to avoid Telegram rate limits
-
 
 def run():
     logger.info("Fetching event list...")
     events = get_event_list()
-    logger.info(f"Found {len(events)} event(s). Starting to send...")
+    logger.info(f"Found {len(events)} event(s). Writing placeholder rows to Google Sheet...")
 
-    success = 0
-    failed = 0
+    inserted = 0
+    skipped  = 0
+    failed   = 0
 
     for i, event_meta in enumerate(events, start=1):
         event_name = event_meta.get("event_full_name", event_meta.get("event_id"))
-        logger.info(f"[{i}/{len(events)}] Processing: {event_name}")
+        logger.info(f"[{i}/{len(events)}] {event_name}")
 
-        try:
-            event_data = get_event_info(event_meta["event_id"])
-        except Exception as e:
-            logger.error(f"  ✗ Failed to fetch odds: {e}")
-            failed += 1
-            continue
-
-        ok = send_telegram(event_meta, event_data)
-        save_to_csv(event_meta, event_data)
+        # event_data=None → placeholder insert (skips if row already exists)
+        ok = save_to_csv(event_meta, None)
 
         if ok:
-            logger.info(f"  ✓ Sent to Telegram")
-            success += 1
+            inserted += 1
         else:
-            logger.warning(f"  ✗ Telegram send failed (data still saved to CSV)")
             failed += 1
 
-        if i < len(events):
-            time.sleep(DELAY_BETWEEN_EVENTS)
-
-    logger.info(f"\nDone! ✓ {success} sent  ✗ {failed} failed")
+    logger.info(f"\nDone!  inserted/skipped: {inserted}  failed: {failed}")
+    logger.info("Odds will be fetched and written by scheduler.py 1 minute before each game.")
 
 
 if __name__ == "__main__":

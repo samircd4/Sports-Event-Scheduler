@@ -15,10 +15,10 @@ services:
     env_file:
       - .env
     volumes:
-      # Persist CSV output and log file on the host across container restarts.
-      # The touch commands below ensure the files exist before Docker tries to bind-mount them.
-      - ./events_data.csv:/app/events_data.csv
+      # Persist log file on the host across container restarts
       - ./scheduler.log:/app/scheduler.log
+      # Service account key — mounted read-only, never baked into the image
+      - ./service_account.json:/app/service_account.json:ro
     logging:
       driver: "json-file"
       options:

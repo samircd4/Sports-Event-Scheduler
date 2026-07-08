@@ -14,6 +14,7 @@ env/
 
 # ── Secrets / credentials ─────────────────────────────────────────────────────
 .env
+service_account.json
 
 # ── Editor / OS noise ────────────────────────────────────────────────────────
 .DS_Store
