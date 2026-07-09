@@ -1,10 +1,14 @@
 from rich import print
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from http_client import session
 
 load_dotenv()
+
+# Read the desired display timezone from .env  (e.g. "America/Denver" for MDT)
+_TZ = ZoneInfo(os.getenv("SERVER_TIMEZONE", "America/Denver"))
 
 
 def get_today_date(days_offset=0):
@@ -58,7 +62,7 @@ def get_event_list():
                 if start_time:
                     local_dt = datetime.fromisoformat(
                         start_time.replace("Z", "+00:00")
-                    ).astimezone()
+                    ).astimezone(_TZ)
 
                     formatted_time = local_dt.strftime("%b %d, %Y %I:%M %p")
                     timezone_name  = local_dt.strftime("%Z")  # e.g. "MDT", "UTC"

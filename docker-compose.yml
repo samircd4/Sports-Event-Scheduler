@@ -14,6 +14,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - TZ=America/Denver   # keeps container system clock in MDT
     volumes:
       # Persist log file on the host across container restarts
       - ./scheduler.log:/app/scheduler.log
