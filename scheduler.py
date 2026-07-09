@@ -30,7 +30,7 @@ RETRY_DELAY_SECONDS = 5       # wait between retries
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    datefmt="%Y-%m-%d %H:%M:%S %Z",
     handlers=[
         logging.StreamHandler(),
         logging.FileHandler("scheduler.log", encoding="utf-8"),
@@ -176,14 +176,17 @@ def run_tick():
     # Fire triggered events each in their own thread
     for event_id in to_trigger:
         event_meta = scheduled_events[event_id]
+        tz = event_meta.get('timezone', '')
         logger.info(f"Triggering: {event_meta.get('event_full_name')} "
-                    f"(starts: {event_meta.get('start_time')})")
+                    f"(starts: {event_meta.get('start_time')} {tz})")
         t = threading.Thread(target=fetch_and_notify, args=(event_meta,), daemon=True)
         t.start()
 
     for event_id in to_skip:
-        logger.warning(f"Missed window for: {scheduled_events[event_id].get('event_full_name')} "
-                       f"(started: {scheduled_events[event_id].get('start_time')})")
+        event_meta = scheduled_events[event_id]
+        tz = event_meta.get('timezone', '')
+        logger.warning(f"Missed window for: {event_meta.get('event_full_name')} "
+                       f"(started: {event_meta.get('start_time')} {tz})")
 
 
 

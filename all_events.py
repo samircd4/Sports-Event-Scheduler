@@ -61,20 +61,23 @@ def get_event_list():
                     ).astimezone()
 
                     formatted_time = local_dt.strftime("%b %d, %Y %I:%M %p")
+                    timezone_name  = local_dt.strftime("%Z")  # e.g. "MDT", "UTC"
                 else:
-                    local_dt = None
+                    local_dt       = None
                     formatted_time = None
+                    timezone_name  = None
 
                 event_data = {}
-                event_data["event_id"]      = event_id
-                event_data["league"]        = league
-                event_data["home"]          = home
-                event_data["away"]          = away
-                event_data["sport"]         = sport
+                event_data["event_id"]        = event_id
+                event_data["league"]          = league
+                event_data["home"]            = home
+                event_data["away"]            = away
+                event_data["sport"]           = sport
                 event_data["event_full_name"] = event_full_name
-                event_data["start_time"]    = formatted_time
-                event_data["start_time_dt"] = local_dt   # raw timezone-aware datetime for scheduler
-                event_data["status"]        = status
+                event_data["start_time"]      = formatted_time
+                event_data["timezone"]        = timezone_name
+                event_data["start_time_dt"]   = local_dt
+                event_data["status"]          = status
 
                 event_list.append(event_data)
 
