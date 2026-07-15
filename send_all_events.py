@@ -10,7 +10,7 @@ The scheduler.py will then fill in the odds columns 1 minute before each game.
 
 import logging
 from all_events import get_event_list
-from storage import save_to_csv   # shim → sheets_storage.save_to_sheet
+from storage import save_events_to_csv_batch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,23 +25,12 @@ def run():
     events = get_event_list()
     logger.info(f"Found {len(events)} event(s). Writing placeholder rows to Google Sheet...")
 
-    inserted = 0
-    skipped  = 0
-    failed   = 0
+    ok = save_events_to_csv_batch(events)
 
-    for i, event_meta in enumerate(events, start=1):
-        event_name = event_meta.get("event_full_name", event_meta.get("event_id"))
-        logger.info(f"[{i}/{len(events)}] {event_name}")
-
-        # event_data=None → placeholder insert (skips if row already exists)
-        ok = save_to_csv(event_meta, None)
-
-        if ok:
-            inserted += 1
-        else:
-            failed += 1
-
-    logger.info(f"\nDone!  inserted/skipped: {inserted}  failed: {failed}")
+    if ok:
+        logger.info(f"\nDone! Successfully batch-processed {len(events)} events.")
+    else:
+        logger.info("\nDone, but batch process encountered errors.")
     logger.info("Odds will be fetched and written by scheduler.py 1 minute before each game.")
 
 

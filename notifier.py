@@ -119,3 +119,32 @@ def send_telegram(event_meta: dict, event_data: dict) -> bool:
     except requests.RequestException as e:
         logger.error(f"Failed to send Telegram notification: {e}")
         return False
+
+
+def send_alert(message: str) -> bool:
+    """
+    Send a plain-text Telegram alert message (no event context needed).
+    Used for system-level warnings such as auth failures.
+
+    Returns True on success, False on failure.
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        logger.error("Telegram credentials not set in .env")
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML",
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
+        resp.raise_for_status()
+        logger.info(f"Telegram alert sent: {message}")
+        return True
+    except requests.RequestException as e:
+        logger.error(f"Failed to send Telegram alert: {e}")
+        return False
+

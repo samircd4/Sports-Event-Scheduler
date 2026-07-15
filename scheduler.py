@@ -17,12 +17,15 @@ from datetime import datetime, timedelta, timezone
 from all_events import get_event_list
 from get_odds import get_event_info
 from notifier import send_telegram
-from storage import save_to_csv
+from storage import save_to_csv, save_events_to_csv_batch
+from sheets_storage import get_events_needing_results, save_results_to_sheet
 
 # ── Configuration ────────────────────────────────────────────────────────────
 TRIGGER_BEFORE_SECONDS = 60   # fetch 1 minute before start
+RESULT_CHECK_INTERVAL_SECONDS = 600  # check for results every 10 minutes
+RESULT_FETCH_DELAY_SECONDS = 60      # wait between consecutive result API calls (avoids IP block)
 REFRESH_INTERVAL_SECONDS = 3600  # refresh event list every hour
-TICK_INTERVAL_SECONDS = 10    # how often to check triggers
+TICK_INTERVAL_SECONDS = 5    # how often to check triggers
 MAX_RETRY_ATTEMPTS = 2        # retries for get_event_info on failure
 RETRY_DELAY_SECONDS = 5       # wait between retries
 
@@ -72,9 +75,8 @@ def refresh_event_list():
     logger.info(f"Event list refreshed — {added} new event(s) added. "
                 f"Total tracked: {len(scheduled_events)}")
 
-    # Store all events to CSV as placeholders immediately if they don't already exist
-    for event in events:
-        save_to_csv(event, None)
+    # Store all events to Google Sheet as placeholders immediately if they don't already exist (in batch)
+    save_events_to_csv_batch(events)
 
 
 
@@ -190,6 +192,96 @@ def run_tick():
 
 
 
+# ───────────────────────────────────────────────────────────────────────────────
+# Result fetcher
+# ───────────────────────────────────────────────────────────────────────────────
+
+def _fetch_result_for_event(event_id: str) -> bool:
+    """
+    Fetch result for a single closed event and save it to the sheet.
+    Returns True if result data was found and saved, False otherwise.
+    This is a plain function (no thread management) — called sequentially
+    by _process_results_sequentially().
+    """
+    logger.info(f"Fetching result for closed event: {event_id}")
+    try:
+        event_data = get_event_info(event_id)
+    except Exception as e:
+        logger.error(f"Failed to fetch result for event_id={event_id}: {e}")
+        return False
+
+    result_keys = [
+        "result_moneyline_home", "result_moneyline_away",
+        "result_spread_home",    "result_spread_away",
+        "result_total_over",     "result_total_under",
+    ]
+    has_result = any(event_data.get(k) for k in result_keys)
+    if not has_result:
+        logger.info(f"No result data yet for event_id={event_id} — will retry next cycle")
+        return False
+
+    result_data = {k: event_data.get(k) for k in result_keys}
+    save_results_to_sheet(event_id, result_data)
+    return True
+
+
+def _process_results_sequentially(event_ids: list):
+    """
+    Process a list of event_ids one by one, waiting RESULT_FETCH_DELAY_SECONDS
+    between each call to avoid rapid API hits that could block the IP.
+    Runs in a single background thread.
+    """
+    t = threading.current_thread()
+    with active_threads_lock:
+        active_threads.append(t)
+    try:
+        total = len(event_ids)
+        for i, event_id in enumerate(event_ids):
+            if i > 0:
+                logger.info(
+                    f"Waiting {RESULT_FETCH_DELAY_SECONDS}s before next result fetch "
+                    f"({i}/{total} done)..."
+                )
+                time.sleep(RESULT_FETCH_DELAY_SECONDS)
+            _fetch_result_for_event(event_id)
+        logger.info(f"Result fetch cycle complete — processed {total} event(s).")
+    finally:
+        with active_threads_lock:
+            try:
+                active_threads.remove(t)
+            except ValueError:
+                pass
+
+
+def fetch_pending_results():
+    """
+    Read the sheet for closed events without results, then process them
+    sequentially in a single background thread with a delay between each call.
+    """
+    logger.info("Checking for closed events needing results...")
+    event_ids = get_events_needing_results()
+    if not event_ids:
+        logger.info("No closed events need results at this time.")
+        return
+    logger.info(f"Found {len(event_ids)} event(s) needing results — processing sequentially "
+                f"with {RESULT_FETCH_DELAY_SECONDS}s delay between calls.")
+    t = threading.Thread(
+        target=_process_results_sequentially,
+        args=(event_ids,),
+        daemon=True,
+    )
+    t.start()
+
+
+def schedule_periodic_result_check():
+    """Run fetch_pending_results every RESULT_CHECK_INTERVAL_SECONDS."""
+    fetch_pending_results()
+    timer = threading.Timer(RESULT_CHECK_INTERVAL_SECONDS, schedule_periodic_result_check)
+    timer.daemon = True
+    timer.start()
+
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
@@ -199,10 +291,14 @@ def main():
     logger.info("  Event Scheduler started")
     logger.info(f"  Trigger: {TRIGGER_BEFORE_SECONDS}s before each event")
     logger.info(f"  Refresh interval: {REFRESH_INTERVAL_SECONDS // 60} minutes")
+    logger.info(f"  Result check interval: {RESULT_CHECK_INTERVAL_SECONDS // 60} minutes")
     logger.info("=" * 60)
 
     # Initial fetch + start periodic refresh timer
     schedule_periodic_refresh()
+
+    # Start periodic result-check loop (every RESULT_CHECK_INTERVAL_SECONDS)
+    schedule_periodic_result_check()
 
     # Main tick loop
     try:

@@ -1,11 +1,15 @@
 from rich import print
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from http_client import session
+from notifier import send_alert
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Read the desired display timezone from .env  (e.g. "America/Denver" for MDT)
 _TZ = ZoneInfo(os.getenv("SERVER_TIMEZONE", "America/Denver"))
@@ -30,6 +34,14 @@ def get_event_list():
             "https://prod-website.pikkit.app/events/all", params=params
         )
         raw_data = response.json()  # Equivalent to json.loads(response.text)
+
+        # Guard: API returned Forbidden — auth key is missing or expired
+        if raw_data.get("message") == "Forbidden":
+            alert_msg = "⚠️ <b>Scheduler Alert</b>\nPlease provide the auth key"
+            logger.error("API returned Forbidden — sending Telegram alert")
+            send_alert(alert_msg)
+            raise RuntimeError("API Forbidden: auth key required")
+
         data = raw_data.get("leagues", [])
         
         for leagues_data in data:

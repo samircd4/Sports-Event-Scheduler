@@ -36,6 +36,22 @@ def get_event_info(event_id):
     
     community = data.get('community', {})
     # print(community)
+    
+    # Closing line is the result data
+    closing_line = data.get('closing_line', [])
+    # Use the first entry (key='full') for result statuses
+    cl_odds = closing_line[0].get('odds', {}) if closing_line else {}
+
+    cl_moneyline = cl_odds.get('moneyline') or {}
+    cl_spread    = cl_odds.get('spread')    or {}
+    cl_total     = cl_odds.get('total')     or {}
+
+    cl_moneyline_home = cl_moneyline.get('home') or {}
+    cl_moneyline_away = cl_moneyline.get('away') or {}
+    cl_spread_home    = cl_spread.get('home')    or {}
+    cl_spread_away    = cl_spread.get('away')    or {}
+    cl_total_over     = cl_total.get('over')     or {}
+    cl_total_under    = cl_total.get('under')    or {}
 
     moneyline_consensus_bet_pct_home = community.get('breakdowns', {}).get('moneyline',{}).get('home',{}).get('bet_pct')
     moneyline_consensus_bet_pct_away = community.get('breakdowns', {}).get('moneyline',{}).get('away',{}).get('bet_pct')
@@ -64,6 +80,14 @@ def get_event_info(event_id):
     event_data['odds_spread_away']    = _safe_round(odds_spread_away.get('odds') if odds_spread_away else None)
     event_data['odds_total_over']     = _safe_round(odds_total_over.get('odds') if odds_total_over else None)
     event_data['odds_total_under']    = _safe_round(odds_total_under.get('odds') if odds_total_under else None)
+
+    # WIN/LOSS result statuses — from closing_line (populated once the event is closed)
+    event_data['result_moneyline_home'] = cl_moneyline_home.get('status') if cl_moneyline_home else None
+    event_data['result_moneyline_away'] = cl_moneyline_away.get('status') if cl_moneyline_away else None
+    event_data['result_spread_home']    = cl_spread_home.get('status')    if cl_spread_home    else None
+    event_data['result_spread_away']    = cl_spread_away.get('status')    if cl_spread_away    else None
+    event_data['result_total_over']     = cl_total_over.get('status')     if cl_total_over     else None
+    event_data['result_total_under']    = cl_total_under.get('status')    if cl_total_under    else None
 
     event_data['moneyline_consensus_bet_pct_home']   = _safe_round(moneyline_consensus_bet_pct_home * 100 if moneyline_consensus_bet_pct_home is not None else None)
     event_data['moneyline_consensus_bet_pct_away']   = _safe_round(moneyline_consensus_bet_pct_away * 100 if moneyline_consensus_bet_pct_away is not None else None)
