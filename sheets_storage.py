@@ -134,6 +134,8 @@ def save_to_sheet(event_meta: dict, event_data: dict | None = None) -> bool:
         "odds_total_over":     event_data.get("odds_total_over")     if event_data else "",
         "odds_total_under":    event_data.get("odds_total_under")    if event_data else "",
 
+        "event_handle": event_data.get("event_handle") if event_data else "",
+
         "moneyline_consensus_bet_pct_home":   event_data.get("moneyline_consensus_bet_pct_home")   if event_data else "",
         "moneyline_consensus_bet_pct_away":   event_data.get("moneyline_consensus_bet_pct_away")   if event_data else "",
         "moneyline_consensus_money_pct_home": event_data.get("moneyline_consensus_money_pct_home") if event_data else "",
