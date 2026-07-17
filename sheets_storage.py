@@ -180,7 +180,7 @@ def save_to_sheet(event_meta: dict, event_data: dict | None = None) -> bool:
             if event_id in event_ids:
                 # ── Row exists ────────────────────────────────────────────────
                 if event_data is None:
-                    # Placeholder refresh: update status + ensure result_added is never empty
+                    # Placeholder refresh: sync status, start_time, and ensure result_added is set
                     sheet_row_num = event_ids.index(event_id) + 2
                     all_rows = ws.get_all_values()
                     header = all_rows[0]
@@ -196,6 +196,17 @@ def save_to_sheet(event_meta: dict, event_data: dict | None = None) -> bool:
                             "values": [[row.get("status", "")]],
                         })
 
+                    # Sync start_time if it changed
+                    if "start_time" in header:
+                        st_col = header.index("start_time") + 1
+                        existing_st = existing_row[st_col - 1] if (st_col - 1) < len(existing_row) else ""
+                        new_st = row.get("start_time", "")
+                        if new_st and new_st != existing_st:
+                            updates.append({
+                                "range": f"{_col_letter(st_col)}{sheet_row_num}",
+                                "values": [[new_st]],
+                            })
+
                     # Backfill result_added = FALSE if the cell is empty
                     if "result_added" in header:
                         ra_col = header.index("result_added") + 1
@@ -209,7 +220,7 @@ def save_to_sheet(event_meta: dict, event_data: dict | None = None) -> bool:
                     if updates:
                         ws.batch_update(updates, value_input_option="USER_ENTERED")
 
-                    logger.debug(f"Refreshed status for existing event: {event_name}")
+                    logger.debug(f"Refreshed status/start_time for existing event: {event_name}")
                     return True
 
                 # Full update: row number in the sheet = list index + 2 (1-based + header)

@@ -65,6 +65,7 @@ def refresh_event_list():
         return
 
     added = 0
+    rescheduled = 0
     with state_lock:
         for event in events:
             event_id = event.get("event_id")
@@ -74,9 +75,29 @@ def refresh_event_list():
                 # Preserve the API status as-is; use "fired" to track scheduler state
                 scheduled_events[event_id] = {**event, "fired": False}
                 added += 1
+            else:
+                # Event already tracked — check if start_time changed
+                existing = scheduled_events[event_id]
+                new_dt = event.get("start_time_dt")
+                old_dt = existing.get("start_time_dt")
+                if new_dt and new_dt != old_dt:
+                    logger.warning(
+                        f"Start time changed for '{event.get('event_full_name', event_id)}': "
+                        f"{old_dt} → {new_dt}. Rescheduling."
+                    )
+                    existing["start_time"]    = event["start_time"]
+                    existing["start_time_dt"] = new_dt
+                    existing["timezone"]      = event.get("timezone")
+                    existing["status"]        = event.get("status")
+                    # Reset fired so the event re-triggers at the new time
+                    existing["fired"] = False
+                    rescheduled += 1
 
-    logger.info(f"Event list refreshed — {added} new event(s) added. "
-                f"Total tracked: {len(scheduled_events)}")
+    logger.info(
+        f"Event list refreshed — {added} new, {rescheduled} rescheduled. "
+        f"Total tracked: {len(scheduled_events)}"
+    )
+
 
     # Store all events to Google Sheet as placeholders immediately if they don't already exist (in batch)
     save_events_to_csv_batch(events)
