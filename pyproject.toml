@@ -12,3 +12,8 @@ dependencies = [
     "gspread>=6.0",
     "tzdata>=2026.3",
 ]
+
+[tool.uv.workspace]
+members = [
+    "poly_market",
+]

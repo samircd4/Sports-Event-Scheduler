@@ -41,6 +41,7 @@ SHEET_COLUMNS = [
     "start_time",
     "status",
     "result_added",
+    "event_handle",
     "odds_moneyline_home",
     "odds_moneyline_away",
     "odds_spread_home",
@@ -377,7 +378,7 @@ def get_events_needing_results() -> list[str]:
                     continue
                 status       = row[status_idx].strip().lower()
                 result_added = row[result_added_idx].strip().upper()
-                if status in ("closed", "triggered") and result_added != "TRUE":
+                if status == "closed" and result_added != "TRUE":
                     eid = row[event_id_idx].strip()
                     if eid:
                         event_ids.append(eid)

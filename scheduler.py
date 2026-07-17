@@ -5,7 +5,7 @@ Behaviour:
 - On startup: fetches today's event list
 - Every 60 minutes: re-fetches the event list and merges any new events
 - Every 10 seconds: checks if any event's trigger time (start - 1 min) has been reached
-- When triggered: fetches odds, sends Telegram notification, saves to CSV
+- When triggered: fetches odds, sends Telegram notification, saves to Google Sheet
 - Each fetch runs in its own thread so simultaneous events don't block each other
 """
 
@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from all_events import get_event_list
-from get_odds import get_event_info
+from get_odds import get_event_info, get_event_result
 from notifier import send_telegram
 from storage import save_to_csv, save_events_to_csv_batch
 from sheets_storage import get_events_needing_results, save_results_to_sheet
@@ -42,7 +42,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Shared state ──────────────────────────────────────────────────────────────
-# { event_id: { ...event_meta, "status": "pending" | "triggered" | "skipped" } }
+# { event_id: { ...event_meta, "status": <api status>, "fired": bool } }
+# "status" is always the raw API value (e.g. "open", "live", "closed").
+# "fired" tracks whether the scheduler has already processed this event.
 scheduled_events: dict = {}
 state_lock = threading.Lock()
 active_threads: list = []   # track running fetch threads for graceful shutdown
@@ -69,7 +71,8 @@ def refresh_event_list():
             if not event_id:
                 continue
             if event_id not in scheduled_events:
-                scheduled_events[event_id] = {**event, "status": "pending"}
+                # Preserve the API status as-is; use "fired" to track scheduler state
+                scheduled_events[event_id] = {**event, "fired": False}
                 added += 1
 
     logger.info(f"Event list refreshed — {added} new event(s) added. "
@@ -153,8 +156,8 @@ def run_tick():
 
     with state_lock:
         for event_id, event in scheduled_events.items():
-            if event["status"] != "pending":
-                continue
+            if event.get("fired", False):
+                continue  # already processed — skip
 
             start_dt = event.get("start_time_dt")
             if start_dt is None:
@@ -171,9 +174,9 @@ def run_tick():
                     to_skip.append(event_id)
 
         for event_id in to_trigger:
-            scheduled_events[event_id]["status"] = "triggered"
+            scheduled_events[event_id]["fired"] = True
         for event_id in to_skip:
-            scheduled_events[event_id]["status"] = "skipped"
+            scheduled_events[event_id]["fired"] = True
 
     # Fire triggered events each in their own thread
     for event_id in to_trigger:
@@ -199,28 +202,23 @@ def run_tick():
 def _fetch_result_for_event(event_id: str) -> bool:
     """
     Fetch result for a single closed event and save it to the sheet.
+    Uses get_event_result() — only fetches closing_line data, not odds/consensus.
     Returns True if result data was found and saved, False otherwise.
     This is a plain function (no thread management) — called sequentially
     by _process_results_sequentially().
     """
     logger.info(f"Fetching result for closed event: {event_id}")
     try:
-        event_data = get_event_info(event_id)
+        result_data = get_event_result(event_id)
     except Exception as e:
         logger.error(f"Failed to fetch result for event_id={event_id}: {e}")
         return False
 
-    result_keys = [
-        "result_moneyline_home", "result_moneyline_away",
-        "result_spread_home",    "result_spread_away",
-        "result_total_over",     "result_total_under",
-    ]
-    has_result = any(event_data.get(k) for k in result_keys)
+    has_result = any(result_data.get(k) for k in result_data)
     if not has_result:
         logger.info(f"No result data yet for event_id={event_id} — will retry next cycle")
         return False
 
-    result_data = {k: event_data.get(k) for k in result_keys}
     save_results_to_sheet(event_id, result_data)
     return True
 
