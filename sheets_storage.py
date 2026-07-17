@@ -318,7 +318,7 @@ def save_events_to_sheet(events: list[dict]) -> bool:
                     row_idx = event_id_to_row_idx[event_id]
                     existing_row = all_rows[row_idx]
                     sheet_row_num = row_idx + 1  # 1-based for sheet row number
-                    
+
                     # 1. Update status if changed
                     if "status" in header:
                         status_col_idx = header.index("status")
@@ -330,8 +330,20 @@ def save_events_to_sheet(events: list[dict]) -> bool:
                                 "range": f"{col_letter}{sheet_row_num}",
                                 "values": [[new_status]],
                             })
-                    
-                    # 2. Ensure result_added is FALSE if empty
+
+                    # 2. Update start_time if changed
+                    if "start_time" in header:
+                        st_col_idx = header.index("start_time")
+                        new_st = event_meta.get("start_time", "")
+                        existing_st = existing_row[st_col_idx] if st_col_idx < len(existing_row) else ""
+                        if new_st and new_st != existing_st:
+                            col_letter = _col_letter(st_col_idx + 1)
+                            updates.append({
+                                "range": f"{col_letter}{sheet_row_num}",
+                                "values": [[new_st]],
+                            })
+
+                    # 3. Ensure result_added is FALSE if empty
                     if "result_added" in header:
                         ra_col_idx = header.index("result_added")
                         existing_ra = existing_row[ra_col_idx] if ra_col_idx < len(existing_row) else ""
@@ -341,6 +353,7 @@ def save_events_to_sheet(events: list[dict]) -> bool:
                                 "range": f"{col_letter}{sheet_row_num}",
                                 "values": [["FALSE"]],
                             })
+
                 else:
                     # New event placeholder
                     new_rows.append(_row_values(row))
